@@ -2,12 +2,15 @@
 #include <fstream>
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <sys/file.h>
 #include <netinet/in.h>
 #include <unistd.h>
 #include <signal.h>
 #include <cstring>
 #include <ctime>
 #include <fcntl.h>
+#include <signal.h>
+#include <stdlib.h>
 
 class Tintin_reporter {
 	public:
@@ -47,8 +50,9 @@ void deleteLockFile() {
 }
 
 int main() {
-	int		lock_fd;
-	int		log_fd;
+	sigset_t	sig_mask;
+	int			lock_fd;
+	int			log_fd;
 
 	if (getuid()) {
 		std::cerr << "This program must be run as root." << std::endl;
@@ -57,25 +61,25 @@ int main() {
 
 	// Check if another instance is running by attempting to open the lock file
 	std::ifstream testLockFile("/var/lock/matt_daemon.lock");
-	if ((lock_fd = open("/var/lock/matt_daemon.lock", O_WRONLY | O_CREAT | O_TRUNC)) < 0) {
-		//nikoumouk
+	if ((lock_fd = open("/var/lock/matt_daemon.lock", O_WRONLY | O_CREAT | O_TRUNC, 0666)) < 0) {
+		std::cerr << "Can't open lock file." << std::endl;
 		return EXIT_FAILURE;
 	}
 
 	if (flock(lock_fd, LOCK_EX | LOCK_NB) == EWOULDBLOCK) {
 		std::cerr << "Another instance is already running." << std::endl;
-	}
-	if (testLockFile.is_open()) {
 		return EXIT_FAILURE;
 	}
-	testLockFile.close();
 
-	createLockFile();
+	
+	// Signal blocking
+	sigfillset(&sig_mask);
+	sigprocmask(SIG_SETMASK, &sig_mask, NULL);
 
-	// Signal handling
-	signal(SIGTERM, signalHandler);
-	// Other signal handling for necessary signals
-
+	if (fork())
+		usleep(100000);
+		return EXIT_SUCCESS;
+	setsid();
 	// Daemonize the process
 	// Fork the process and handle child/parent termination
 
