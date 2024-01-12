@@ -6,11 +6,11 @@ Tintin_reporter::Tintin_reporter(void) {
 			std::ios::app);
 	log_stream.exceptions(std::ios_base::failbit
 			| std::ios_base::badbit);
-	log("Started.");
+	info("Started.");
 }	
 
 Tintin_reporter::~Tintin_reporter(void) {
-	log("Quitting.");
+	info("Quitting.");
 	log_stream.close();
 }
 

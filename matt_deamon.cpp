@@ -7,9 +7,9 @@ int			error(std::string msg) {
 
 int main() {
 	sigset_t		sig_mask;
-	int				lock_fd, serv_sock, client_sock;
+	int				lock_fd, serv_sock, client_sock, reuse = 1;
 	Tintin_reporter	tintin;
-	sockaddr_un		serv_addr, client_addr;
+	sockaddr_in		serv_addr, client_addr;
 	socklen_t		socklen;
 
 	if (getuid())
@@ -26,7 +26,7 @@ int main() {
 		return (error("Another instance is already running"));
 	}
 
-	tintin.log("Entering Daemon mode");
+	tintin.info("Entering Daemon mode");
 
 	if (fork()) {
 		usleep(100000);
@@ -34,31 +34,32 @@ int main() {
 	}
 	setsid();
 	tintin.info("started", getpid());
-	if ((serv_sock = socket(AF_UNIX, SOCK_STREAM, 0)) == -1) {
-		tintin.error("Can't create socket");
-		return EXIT_FAILURE;
+	if ((serv_sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)) < 0)
+		return (tintin.error("Can't create socket"));
+	serv_addr.sin_family = AF_INET;
+	serv_addr.sin_port = htons(4242);
+	inet_aton("127.0.0.1", (struct in_addr *)&serv_addr.sin_addr.s_addr);
+	if (setsockopt(serv_sock, SOL_SOCKET, SO_REUSEPORT, &reuse, sizeof(reuse))) {
+		close(serv_sock);
+		return (tintin.error("Can't set socket option"));
 	}
-	serv_addr.sun_family = AF_UNIX;
-	strcpy(serv_addr.sun_path, "/tmp/matt_daemon_socket");
-	if (bind(serv_sock, (struct sockaddr *)&serv_addr,
-			strlen(serv_addr.sun_path) + sizeof(sa_family_t))) {
+	if (bind(serv_sock, (struct sockaddr *)&serv_addr, sizeof(serv_addr))) {
 		close(serv_sock);
 		return (tintin.error("Can't bind socket"));
 	}
-
 	if (listen(serv_sock, CLIENTS_MAX)) {
+		perror("listen");
 		close(serv_sock);
 		return (tintin.error("Can't listen on port"));
 	}
-
 	if ((client_sock = accept(serv_sock, (struct sockaddr *)&client_addr, &socklen)) < 0) {
 		close(serv_sock);
 		return (tintin.error("Can't accept connection"));
 	}
 
+	tintin.info("Connection accepted");
 	while (42);
 
-	tintin.log("Connection accepted");
 	close(lock_fd);
 	std::remove("/var/lock/matt_daemon.lock");
 	return EXIT_SUCCESS;
