@@ -1,39 +1,72 @@
 #include "Tintin_reporter.hpp"
 
-int			error(std::string msg) {
-	std::cerr << "Error: Matt_daemon: " << msg << ".\n";
-	return (EXIT_FAILURE);
+class	Daemon {
+	public:
+		Daemon(void);
+		Daemon(const Daemon &daemon) : logger(daemon.logger), lock_fd(daemon.lock_fd) {};
+		~Daemon(void);
+
+		Daemon	&operator=(const Daemon &daemon);
+		void	detach(void);
+//		void	run(void);
+
+	private:
+		Tintin_reporter		logger;
+		int					lock_fd;
+};
+
+Daemon::Daemon(void) : logger() {
+	MyError		err;
+
+	if ((lock_fd = open(LOCK_FILE,
+					O_WRONLY | O_CREAT | O_TRUNC, 0666)) < 0) {
+		logger.error((err = MyError("Can't open lock file")));
+		throw (err);
+	}
+	if (flock(lock_fd, LOCK_EX | LOCK_NB)) {
+		logger.error((err = MyError("Another instance is already running")));
+		throw (err);
+	}
 }
 
-int main() {
-	sigset_t		sig_mask;
-	int				lock_fd, serv_sock, client_sock;
-	Tintin_reporter	tintin;
+Daemon	&Daemon::operator=(const Daemon &daemon) {
+	logger = daemon.logger;
+	lock_fd = daemon.lock_fd;
+	return (*this);
+}
+
+Daemon::~Daemon(void) {
+	close(lock_fd);
+	std::remove(LOCK_FILE);
+}
+
+void	Daemon::detach(void) {
+	sigset_t	sig_mask;
+	MyError		err;
+
+	logger.log("Entering Daemon mode");
+	switch (fork()) {
+		case -1:
+			logger.error((err = MyError("Can't daemonize process")));
+			throw (err);
+		case 0:
+			setsid();
+			sigfillset(&sig_mask);
+			sigprocmask(SIG_SETMASK, &sig_mask, NULL);
+			logger.info("started", getpid());
+			return;
+		default:
+			usleep(MS_2_WAIT);
+			exit(EXIT_SUCCESS);
+	}
+}
+
+/*
+void	Daemon::run(void) {
+	int				serv_sock, client_sock;
 	sockaddr_un		serv_addr, client_addr;
 	socklen_t		socklen;
 
-	if (getuid())
-		return error("This program must be run as root");
-	sigfillset(&sig_mask);
-	sigprocmask(SIG_SETMASK, &sig_mask, NULL);
-	if ((lock_fd = open("/var/lock/matt_daemon.lock", O_WRONLY | O_CREAT | O_TRUNC, 0666)) < 0) {
-		tintin.error("Can't open lock file");
-		return (error("Can't open lock file"));
-	}
-
-	if (flock(lock_fd, LOCK_EX | LOCK_NB)) {
-		tintin.error("Another instance is already running");
-		return (error("Another instance is already running"));
-	}
-
-	tintin.log("Entering Daemon mode");
-
-	if (fork()) {
-		usleep(100000);
-		return EXIT_SUCCESS;
-	}
-	setsid();
-	tintin.info("started", getpid());
 	if ((serv_sock = socket(AF_UNIX, SOCK_STREAM, 0)) == -1) {
 		tintin.error("Can't create socket");
 		return EXIT_FAILURE;
@@ -56,10 +89,32 @@ int main() {
 		return (tintin.error("Can't accept connection"));
 	}
 
-	while (42);
-
 	tintin.log("Connection accepted");
-	close(lock_fd);
-	std::remove("/var/lock/matt_daemon.lock");
+}
+*/
+
+int			error(const MyError &err) {
+	std::cerr << "Error: Matt_daemon: " << err.what() << ".\n";
+	return (EXIT_FAILURE);
+}
+
+int main() {
+	sigset_t		sig_mask;
+
+	sigfillset(&sig_mask);
+	sigprocmask(SIG_SETMASK, &sig_mask, NULL);
+	if (getuid())
+		return error(MyError("This program must be run as root"));
+
+	try {
+		Daemon			dm;
+
+		dm.detach();
+		while (42);
+//		dm.run();
+	} catch (MyError &e) {
+		return (error(e));
+	}
+
 	return EXIT_SUCCESS;
 }

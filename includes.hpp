@@ -19,6 +19,9 @@
 #include <arpa/inet.h>
 #include <sys/un.h>
 
-#define	CLIENTS_MAX 3
+#define TIME_BUFF_SZ	256
+#define	CLIENT_NB		3
+#define LOCK_FILE		"/var/lock/matt_daemon.lock"
+#define MS_2_WAIT		100000
 
 #endif // INCLUDES_H

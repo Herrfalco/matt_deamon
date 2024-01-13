@@ -2,42 +2,46 @@
 
 Tintin_reporter::Tintin_reporter(void) {
 	mkdir("/var/log/matt_daemon", 0777);
-	log_stream.open("/var/log/matt_daemon/matt_daemon.log",
-			std::ios::app);
-	log_stream.exceptions(std::ios_base::failbit
-			| std::ios_base::badbit);
+	if ((log_fd = open("/var/log/matt_daemon/matt_daemon.log",
+					O_WRONLY | O_CREAT | O_APPEND)) < 0)
+		throw (MyError("Can't open log file"));		
 	log("Started.");
 }	
 
 Tintin_reporter::~Tintin_reporter(void) {
 	log("Quitting.");
-	log_stream.close();
+	close(log_fd);
+}
+
+Tintin_reporter	&Tintin_reporter::operator=(const Tintin_reporter &rep) {
+	log_fd = rep.log_fd;
+	return *this;
 }
 
 void	Tintin_reporter::log_hdr(const std::string &type) {
-	time_t			now = time(0);
-	struct 	tm		*ltm = localtime(&now);
-	char			timestamp[128];
+	time_t		now = time(0);
+	struct tm	*ltm = localtime(&now);
+	char		timestamp[TIME_BUFF_SZ];
 
-	strftime(timestamp, sizeof(timestamp), "[%d/%m/%Y-%H:%M:%S]", ltm);
-	log_stream << timestamp << " [ " <<  type << " ] - Matt_daemon: ";
+	strftime(timestamp, TIME_BUFF_SZ, "[%d/%m/%Y-%H:%M:%S]", ltm);
+	dprintf(log_fd, "%s [ %s ] - Matt_daemon: ", timestamp, type.c_str());
 }
 
 void	Tintin_reporter::info(const std::string &msg, int pid) {
 	log_hdr("INFO");
-	log_stream << msg;
+	dprintf(log_fd, "%s", msg.c_str());
 	if (pid)
-		log_stream << ". PID:" << pid;
-	log_stream << ".\n";
+		dprintf(log_fd, ". PID: %d", pid);
+	dprintf(log_fd, ".\n");
 }
 
-int		Tintin_reporter::error(const std::string &msg) {
+int		Tintin_reporter::error(const MyError &err) {
 	log_hdr("ERROR");
-	log_stream << msg << ".\n";
+	dprintf(log_fd, "%s.\n", err.what());
 	return (EXIT_FAILURE);
 }
 
 void	Tintin_reporter::log(const std::string &msg) {
 	log_hdr("LOG");
-	log_stream << "User input: " << msg << std::endl;
+	dprintf(log_fd, "User input: %s\n", msg.c_str());
 }
