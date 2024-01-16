@@ -18,9 +18,15 @@
 #include <stdlib.h>
 #include <arpa/inet.h>
 #include <sys/un.h>
+#include <poll.h>
+#include <pthread.h>
 
-#define TIME_BUFF_SZ	256
+#define BUFF_SZ			256
 #define	CLIENT_NB		3
+#define FD_NB			1
+#define TIMEOUT			0
+#define LOCALHOST		"127.0.0.1"
+#define	DAEMON_PORT		4242
 #define LOCK_FILE		"/var/lock/matt_daemon.lock"
 #define MS_2_WAIT		100000
 

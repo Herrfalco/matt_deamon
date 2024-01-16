@@ -11,7 +11,7 @@ class Tintin_reporter {
 		Tintin_reporter &operator=(const Tintin_reporter &rep);
 
 		void	 info(const std::string &message, int pid = 0);
-		int		 error(const MyError &error);
+		void	 error(const MyError &error);
 		void	 log(const std::string &message);
 
 	private:

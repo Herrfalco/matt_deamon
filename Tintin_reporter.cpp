@@ -5,11 +5,11 @@ Tintin_reporter::Tintin_reporter(void) {
 	if ((log_fd = open("/var/log/matt_daemon/matt_daemon.log",
 					O_WRONLY | O_CREAT | O_APPEND)) < 0)
 		throw (MyError("Can't open log file"));		
-	log("Started.");
+	info("Started");
 }	
 
 Tintin_reporter::~Tintin_reporter(void) {
-	log("Quitting.");
+	info("Quitting");
 	close(log_fd);
 }
 
@@ -21,9 +21,9 @@ Tintin_reporter	&Tintin_reporter::operator=(const Tintin_reporter &rep) {
 void	Tintin_reporter::log_hdr(const std::string &type) {
 	time_t		now = time(0);
 	struct tm	*ltm = localtime(&now);
-	char		timestamp[TIME_BUFF_SZ];
+	char		timestamp[BUFF_SZ];
 
-	strftime(timestamp, TIME_BUFF_SZ, "[%d/%m/%Y-%H:%M:%S]", ltm);
+	strftime(timestamp, BUFF_SZ, "[%d/%m/%Y-%H:%M:%S]", ltm);
 	dprintf(log_fd, "%s [ %s ] - Matt_daemon: ", timestamp, type.c_str());
 }
 
@@ -35,10 +35,10 @@ void	Tintin_reporter::info(const std::string &msg, int pid) {
 	dprintf(log_fd, ".\n");
 }
 
-int		Tintin_reporter::error(const MyError &err) {
+void	Tintin_reporter::error(const MyError &err) {
 	log_hdr("ERROR");
 	dprintf(log_fd, "%s.\n", err.what());
-	return (EXIT_FAILURE);
+	exit(EXIT_FAILURE);
 }
 
 void	Tintin_reporter::log(const std::string &msg) {
