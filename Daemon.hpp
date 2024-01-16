@@ -11,12 +11,12 @@ class	Daemon {
 		void	run(void);
 
 	private:
+		int		event_loop(int event_nb, struct epoll_event *events);
+		void	serv_loop(void);
+
 		Tintin_reporter		logger;
 		int					lock_fd;
 		int					serv_sock;
-		int					client_sock;
-		pthread_t			thrds[3];
-
-		void	request_quit(void);
-		void	*handle_client(void *arg);
+		int					epoll;
+		std::list<int>		clients;
 };

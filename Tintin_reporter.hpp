@@ -10,14 +10,14 @@ class Tintin_reporter {
 		~Tintin_reporter(void);
 		Tintin_reporter &operator=(const Tintin_reporter &rep);
 
-		void	 info(const std::string &message, int pid = 0);
-		void	 error(const MyError &error);
-		void	 log(const std::string &message);
+		void		info(const std::string &message, int pid = 0);
+		void		error(const MyError &error);
+		void		log(const std::string &message);
 
 	private:
-		int		log_fd;
+		void		log_hdr(const std::string &message);
 
-		void	log_hdr(const std::string &message);
+		int			log_fd;
 };
 
 #endif // TINTIN_REPORTER

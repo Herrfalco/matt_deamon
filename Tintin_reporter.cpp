@@ -9,8 +9,8 @@ Tintin_reporter::Tintin_reporter(void) {
 }	
 
 Tintin_reporter::~Tintin_reporter(void) {
-	info("Quitting");
 	close(log_fd);
+	info("Quitting");
 }
 
 Tintin_reporter	&Tintin_reporter::operator=(const Tintin_reporter &rep) {
@@ -38,7 +38,7 @@ void	Tintin_reporter::info(const std::string &msg, int pid) {
 void	Tintin_reporter::error(const MyError &err) {
 	log_hdr("ERROR");
 	dprintf(log_fd, "%s.\n", err.what());
-	exit(EXIT_FAILURE);
+	throw err;
 }
 
 void	Tintin_reporter::log(const std::string &msg) {

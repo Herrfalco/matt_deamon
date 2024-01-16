@@ -20,6 +20,8 @@
 #include <sys/un.h>
 #include <poll.h>
 #include <pthread.h>
+#include <sys/epoll.h>
+#include <list>
 
 #define BUFF_SZ			256
 #define	CLIENT_NB		3
@@ -29,5 +31,6 @@
 #define	DAEMON_PORT		4242
 #define LOCK_FILE		"/var/lock/matt_daemon.lock"
 #define MS_2_WAIT		100000
+#define MAX_QUEUE		4096
 
 #endif // INCLUDES_H
