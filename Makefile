@@ -4,7 +4,7 @@ SRCS	=	Tintin_reporter.cpp \
 			matt_deamon.cpp
 OBJS	=	$(SRCS:.cpp=.o)
 CC	=	g++
-CFLAGS	=	-Wall -Wextra -Werror
+CFLAGS	= -Wall -Wextra -Werror
 
 all	:	$(NAME)
 

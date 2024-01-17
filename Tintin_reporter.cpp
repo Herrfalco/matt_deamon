@@ -2,7 +2,7 @@
 
 Tintin_reporter::Tintin_reporter(void) {
 	mkdir("/var/log/matt_daemon", 0777);
-	if ((log_fd = open("/var/log/matt_daemon/matt_daemon.log",
+	if ((log_fd = open(LOG_FILE,
 					O_WRONLY | O_CREAT | O_APPEND)) < 0)
 		throw (MyError("Can't open log file"));		
 	info("Started");
@@ -44,4 +44,9 @@ void	Tintin_reporter::error(const MyError &err) {
 void	Tintin_reporter::log(const std::string &msg) {
 	log_hdr("LOG");
 	dprintf(log_fd, "User input: %s\n", msg.c_str());
+}
+
+void	Tintin_reporter::signal(const uint32_t &sig) {
+	log_hdr("SIGNAL");
+	dprintf(log_fd, "%s signal intercepted\n", strsignal(sig));
 }

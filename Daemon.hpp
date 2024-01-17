@@ -17,6 +17,7 @@ class	Daemon {
 		Tintin_reporter		logger;
 		int					lock_fd;
 		int					serv_sock;
+		int					sig_fd;
 		int					epoll;
 		std::list<int>		clients;
 };

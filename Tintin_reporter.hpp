@@ -13,6 +13,7 @@ class Tintin_reporter {
 		void		info(const std::string &message, int pid = 0);
 		void		error(const MyError &error);
 		void		log(const std::string &message);
+		void		signal(const uint32_t &sig);
 
 	private:
 		void		log_hdr(const std::string &message);

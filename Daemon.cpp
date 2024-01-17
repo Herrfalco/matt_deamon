@@ -52,14 +52,21 @@ void	Daemon::detach(void) {
 }
 
 int		Daemon::event_loop(int event_nb, struct epoll_event *events) {
-	int					i, cli, flags;
-	ssize_t				r_ret;
-    char				buff[BUFF_SZ + 1] = { 0 };
-    struct epoll_event	event;
+	int						i, cli, flags;
+	ssize_t					r_ret;
+    char					buff[BUFF_SZ + 1] = { 0 };
+    struct epoll_event		event;
+	struct signalfd_siginfo	sig_info;
 
 	event.events = EPOLLIN;
 	for (i = 0; i < event_nb; ++i) {
-		if (events[i].data.fd == serv_sock) {
+		if (events[i].data.fd == sig_fd) {
+			if ((r_ret = read(events[i].data.fd, &sig_info, sizeof(sig_info))) > 0) {
+				logger.signal(sig_info.ssi_signo);
+				close(events[i].data.fd);
+				return (0);
+			}
+		} else if (events[i].data.fd == serv_sock) {
 			if (clients.size() >= CLIENT_NB)
 				continue;
 			if ((cli = accept(serv_sock, NULL, NULL)) < 0)
@@ -75,8 +82,10 @@ int		Daemon::event_loop(int event_nb, struct epoll_event *events) {
 			buff[r_ret] = '\0';
 			// ptit souci si depassement de buffer (plusieurs ligne de logs
 			// et detection de quit dans le log suivant... acceptable ?)
-			if (!strncmp(buff, "quit", 4))
+			if (!strncmp(buff, "quit", 4)) {
+				close(events[i].data.fd);
 				return (0);
+			}
 			else
 				logger.log(buff);
 		} else {
@@ -90,16 +99,30 @@ int		Daemon::event_loop(int event_nb, struct epoll_event *events) {
 }
 
 void	Daemon::serv_loop(void) {
-	int					event_nb;
+	int					event_nb, i, sig[] = {
+		SIGALRM, SIGHUP, SIGINT, SIGPIPE,
+		SIGTERM, SIGUSR1, SIGUSR2, SIGQUIT,
+	};
     struct epoll_event	event {
 		.events = EPOLLIN,
 		.data = { .fd = serv_sock },
 	}, events[CLIENT_NB + 1];
+	sigset_t			sigset;
 
+	sigemptyset(&sigset);
+	for (i = 0; i < SIG_NB; ++i)
+	    sigaddset(&sigset, sig[i]);
+	if ((sig_fd = signalfd(-1, &sigset, 0)) < 0) {
+		perror("sig_fd");
+		throw (MyError("Can't create signal fd"));
+	}
     if ((epoll = epoll_create1(0)) < 0)
 		throw (MyError("Can't create epoll instance"));
     if (epoll_ctl(epoll, EPOLL_CTL_ADD, serv_sock, &event))
 		throw (MyError("Can't add server socket to epoll instance"));
+	event.data.fd = sig_fd;
+    if (epoll_ctl(epoll, EPOLL_CTL_ADD, sig_fd, &event))
+		throw (MyError("Can't add signal fd to epoll instance"));
 	do
 		if ((event_nb = epoll_wait(epoll, events, CLIENT_NB + 1, -1)) < 0)
 			throw (MyError("Can't get pending events"));
