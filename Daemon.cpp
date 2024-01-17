@@ -6,7 +6,7 @@ Daemon::Daemon(void) : logger(), serv_sock(0), epoll(0), clients() {
 		logger.error(MyError("Can't open lock file"));
 	if (flock(lock_fd, LOCK_EX | LOCK_NB)) {
 		close(lock_fd);
-		logger.error(MyError("Another instance is already running"));
+		logger.error(MyError("Another process tried to create/open matt_daemon.lock"));
 	}
 }
 
@@ -38,7 +38,7 @@ void	Daemon::detach(void) {
 	logger.info("Entering Daemon mode");
 	switch (fork()) {
 		case -1:
-			logger.error(MyError("Can't daemonize process"));
+			return (logger.error(MyError("Can't daemonize process")));
 		case 0:
 			setsid();
 			sigfillset(&sig_mask);
@@ -55,8 +55,9 @@ int		Daemon::event_loop(int event_nb, struct epoll_event *events) {
 	int					i, cli, flags;
 	ssize_t				r_ret;
     char				buff[BUFF_SZ + 1] = { 0 };
-    struct epoll_event	event { .events = EPOLLIN };
+    struct epoll_event	event;
 
+	event.events = EPOLLIN;
 	for (i = 0; i < event_nb; ++i) {
 		if (events[i].data.fd == serv_sock) {
 			if (clients.size() >= CLIENT_NB)
@@ -74,10 +75,10 @@ int		Daemon::event_loop(int event_nb, struct epoll_event *events) {
 			buff[r_ret] = '\0';
 			// ptit souci si depassement de buffer (plusieurs ligne de logs
 			// et detection de quit dans le log suivant... acceptable ?)
-			if (!strcmp(buff, "quit"))
+			if (!strncmp(buff, "quit", 4))
 				return (0);
 			else
-				logger.info(buff);
+				logger.log(buff);
 		} else {
 			close(events[i].data.fd);
 			clients.remove(events[i].data.fd);
@@ -89,7 +90,7 @@ int		Daemon::event_loop(int event_nb, struct epoll_event *events) {
 }
 
 void	Daemon::serv_loop(void) {
-	int					event_nb, quit = 0;
+	int					event_nb;
     struct epoll_event	event {
 		.events = EPOLLIN,
 		.data = { .fd = serv_sock },
@@ -112,6 +113,7 @@ void	Daemon::run(void) {
 		.sin_family = AF_INET,
 		.sin_port = htons(DAEMON_PORT),
 		.sin_addr = { .s_addr = INADDR_ANY },
+		.sin_zero = 0
 	};
 
 	if ((serv_sock = socket(AF_INET, SOCK_STREAM | SOCK_NONBLOCK,
